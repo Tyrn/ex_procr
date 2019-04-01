@@ -95,6 +95,44 @@ defmodule ExProcr.CLI do
           long: "--prepend-subdir-name",
           help: "prepend current subdirectory name to a file name"
         ]
+      ],
+      options: [
+        file_type: [
+          value_name: "FILE_TYPE",
+          short: "-e",
+          long: "--file-type",
+          help: "accept only audio files of the specified type",
+          parser: :string
+        ],
+        unified_name: [
+          value_name: "UNIFIED_NAME",
+          short: "-u",
+          long: "--unified-name",
+          help:
+            "destination root directory name and file names are based on UNIFIED_NAME, serial number prepended, file extensions retained; also album tag, if the latter is not specified explicitly",
+          parser: :string
+        ],
+        album_num: [
+          value_name: "ALBUM_NUM",
+          short: "-b",
+          long: "--album-num",
+          help: "0..99; prepend ALBUM_NUM to the destination root directory name",
+          parser: :integer
+        ],
+        artist_tag: [
+          value_name: "ARTIST_TAG",
+          short: "-a",
+          long: "--artist-tag",
+          help: "artist tag name",
+          parser: :string
+        ],
+        album_tag: [
+          value_name: "ALBUM_TAG",
+          short: "-g",
+          long: "--album-tag",
+          help: "album tag name",
+          parser: :string
+        ]
       ]
     )
     |> Optimus.parse!(argv)
