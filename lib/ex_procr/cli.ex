@@ -21,7 +21,7 @@ defmodule ExProcr.CLI do
   """
 
   @doc """
-  Parse the command line.
+  Parses the command line.
   """
   def parse_args(argv) do
     Optimus.new!(
