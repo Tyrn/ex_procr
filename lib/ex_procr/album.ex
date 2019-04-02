@@ -17,7 +17,7 @@ defmodule ExProcr.Album do
   @doc """
   Reduces authors to initials.
   """
-  def make_initials(authors, sep \\ ".", _trail \\ ".", _hyph \\ "-") do
+  def make_initials(authors, sep \\ ".", trail \\ ".", hyph \\ "-") do
     by_space = fn s ->
       Enum.join(
         for(
@@ -29,6 +29,24 @@ defmodule ExProcr.Album do
       )
     end
 
-    by_space.(authors)
+    by_hyph = fn s ->
+      Enum.join(
+        for(
+          x <- Regex.split(~r{\s*(?:#{hyph}\s*)+}, s),
+          do: x |> by_space.()
+        ),
+        hyph
+      ) <> trail
+    end
+
+    sans_monikers = Regex.replace(~R{\"(?:\\.|[^\"\\])*\"}, authors, " ")
+
+    Enum.join(
+      for(
+        author <- String.split(sans_monikers, ","),
+        do: author |> by_hyph.()
+      ),
+      ","
+    )
   end
 end
