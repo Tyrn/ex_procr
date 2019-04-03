@@ -7,6 +7,75 @@ defmodule ExProcr.Album do
   end
 
   @doc """
+  Returns a tuple of: (0) naturally sorted list of
+  offspring directory paths (1) naturally sorted list
+  of offspring file paths.
+  """
+  def list_dir_groom(abs_path) do
+    raw_list = File.ls!(abs_path)
+    raw_dirs = for x <- raw_list, File.dir?(x), do: x
+    raw_files = for x <- raw_list, not File.dir?(x), do: x
+
+    dirs =
+      for x <- Enum.sort(raw_dirs, &str_le_n/2) do
+        Path.join(abs_path, x)
+      end
+
+    files =
+      for x <- Enum.sort(raw_files, &str_le_n/2) do
+        Path.join(abs_path, x)
+      end
+
+    {dirs, files}
+  end
+
+  @doc """
+  Traverse it!
+  """
+  def traverse_tree_dst(src_dir, _dst_step \\ nil) do
+    IO.puts("trav entered: <#{src_dir}>")
+    {dirs, files} = list_dir_groom(src_dir)
+
+    for {x, i} <- Enum.with_index(dirs) do
+      IO.puts("dir #{i}: #{x}")
+      traverse_tree_dst(x)
+    end
+
+    for {x, i} <- Enum.with_index(files) do
+      IO.puts("file #{i}: #{x}")
+    end
+  end
+
+  @doc """
+  ## Examples
+
+      iex> ExProcr.Album.zero_pad(3, 5)
+      "00003"
+      iex> ExProcr.Album.zero_pad(15331, 3)
+      "15331"
+
+  """
+  def zero_pad(value, n) do
+    value |> Integer.to_string() |> String.pad_leading(n, "0")
+  end
+
+  @doc """
+  Returns True, if path has extension ext, case and leading dot insensitive.
+
+  ## Examples
+
+      iex> ExProcr.Album.has_ext_of("party/foxtrot.MP3", "mp3")
+      true
+
+  """
+  def has_ext_of(path, ext) do
+    path
+    |> Path.extname()
+    |> String.trim(".")
+    |> String.upcase() == ext |> String.trim(".") |> String.upcase()
+  end
+
+  @doc """
   Returns a vector of integer numbers
   embedded in a string argument.
 

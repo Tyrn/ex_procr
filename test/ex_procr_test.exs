@@ -9,6 +9,19 @@ defmodule ExProcrTest do
     assert ExProcr.hello() == :world
   end
 
+  test "checks Path.extname behavior" do
+    assert Path.extname("") == ""
+    assert Path.extname(".") == "."
+    assert Path.extname(".moo") == ".moo"
+    assert Path.extname("ama.do/fifth") == ""
+  end
+
+  test "checks for a specified extension" do
+    assert has_ext_of("/alfa/bra.vo/charlie.ogg", "OGG") == true
+    assert has_ext_of("/alfa/bra.vo/charlie.ogg", ".ogg") == true
+    assert has_ext_of("/alfa/bra.vo/charlie.ogg", "mp3") == false
+  end
+
   test "strips numbers from a string" do
     assert str_strip_numbers("ab11cdd2k.144") == [11, 2, 144]
     assert str_strip_numbers("144") == [144]
