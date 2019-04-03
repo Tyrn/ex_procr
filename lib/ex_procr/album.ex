@@ -13,8 +13,9 @@ defmodule ExProcr.Album do
   """
   def list_dir_groom(abs_path) do
     raw_list = File.ls!(abs_path)
-    raw_dirs = for x <- raw_list, File.dir?(x), do: x
-    raw_files = for x <- raw_list, not File.dir?(x), do: x
+    # Absolute paths do not go into sorting.
+    raw_dirs = for x <- raw_list, File.dir?(Path.join(abs_path, x)), do: x
+    raw_files = for x <- raw_list, File.regular?(Path.join(abs_path, x)), do: x
 
     dirs =
       for x <- Enum.sort(raw_dirs, &str_le_n/2) do
@@ -33,7 +34,6 @@ defmodule ExProcr.Album do
   Traverse it!
   """
   def traverse_tree_dst(src_dir, _dst_step \\ nil) do
-    IO.puts("trav entered: <#{src_dir}>")
     {dirs, files} = list_dir_groom(src_dir)
 
     for {x, i} <- Enum.with_index(dirs) do
@@ -44,6 +44,8 @@ defmodule ExProcr.Album do
     for {x, i} <- Enum.with_index(files) do
       IO.puts("file #{i}: #{x}")
     end
+
+    nil
   end
 
   @doc """
