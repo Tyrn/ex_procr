@@ -15,6 +15,32 @@ defmodule ExProcrTest do
     assert str_strip_numbers("") == []
   end
 
+  test "less than or equal" do
+    assert str_le_n("", "") == true
+    assert str_le_n("2a", "10a") == true
+    assert str_le_n("alfa", "bravo") == true
+  end
+
+  test "greater than or equal" do
+    assert str_ge_n("", "") == true
+    assert str_ge_n("2a", "10a") == false
+    assert str_ge_n("alfa", "bravo") == false
+  end
+
+  test "sorts naturally" do
+    assert Enum.sort(
+             ["bravo", "10", "alfa", "12", "9", "8"],
+             &str_le_n/2
+           ) == ["8", "9", "10", "12", "alfa", "bravo"]
+  end
+
+  test "sorts naturally in descending order" do
+    assert Enum.sort(
+             ["bravo", "10", "alfa", "12", "9", "8"],
+             &str_ge_n/2
+           ) == ["bravo", "alfa", "12", "10", "9", "8"]
+  end
+
   test "makes initials" do
     assert make_initials(" ") == "."
     assert make_initials("John ronald reuel Tolkien") == "J.R.R.T."

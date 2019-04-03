@@ -15,6 +15,28 @@ defmodule ExProcr.Album do
   end
 
   @doc """
+  Returns true if s1 is less than or equal to s2. If both strings
+  contain digits, attempt is made to compare strings naturally.
+  """
+  def str_le_n(s1, s2) do
+    str1 = str_strip_numbers(s1)
+    str2 = str_strip_numbers(s2)
+
+    if str1 != [] and str2 != [], do: str1 <= str2, else: s1 <= s2
+  end
+
+  @doc """
+  Returns true if s1 is greater than or equal to s2. If both strings
+  contain digits, attempt is made to compare strings naturally.
+  """
+  def str_ge_n(s1, s2) do
+    str1 = str_strip_numbers(s1)
+    str2 = str_strip_numbers(s2)
+
+    if str1 != [] and str2 != [], do: str1 >= str2, else: s1 >= s2
+  end
+
+  @doc """
   Reduces authors to initials.
   """
   def make_initials(authors, sep \\ ".", trail \\ ".", hyph \\ "-") do
