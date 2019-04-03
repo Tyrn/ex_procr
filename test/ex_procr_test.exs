@@ -1,6 +1,7 @@
 defmodule ExProcrTest do
   use ExUnit.Case
   doctest ExProcr
+  doctest ExProcr.Album
 
   import ExProcr.Album
 
@@ -13,6 +14,11 @@ defmodule ExProcrTest do
     assert str_strip_numbers("144") == [144]
     assert str_strip_numbers("Ignacio Vazquez-Abrams") == []
     assert str_strip_numbers("") == []
+  end
+
+  test "lists of integers are not insane" do
+    assert [1, 2] < [1, 2, 3] == true
+    assert [1, 3] > [1, 2, 3] == true
   end
 
   test "less than or equal" do
@@ -54,6 +60,6 @@ defmodule ExProcrTest do
     assert make_initials("a.s.,b.s.") == "A.S.,B.S."
     assert make_initials("A. Strugatsky, B...Strugatsky.") == "A.S.,B.S."
     assert make_initials("Иржи Кропачек, Йозеф Новотный") == "И.К.,Й.Н."
-    assert make_initials("Österreich") == "Ö."
+    assert make_initials("österreich") == "Ö."
   end
 end
