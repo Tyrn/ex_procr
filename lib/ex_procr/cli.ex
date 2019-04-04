@@ -36,12 +36,14 @@ defmodule ExProcr.CLI do
         src_dir: [
           value_name: "SRC_DIR",
           help: "source directory",
-          required: true
+          required: true,
+          parser: fn s -> {:ok, Path.expand(s)} end
         ],
         dst_dir: [
           value_name: "DST_DIR",
           help: "general destination directory",
-          required: true
+          required: true,
+          parser: fn s -> {:ok, Path.expand(s)} end
         ]
       ],
       flags: [

@@ -4,6 +4,12 @@ defmodule ExProcr.Album do
   """
   def copy(opt) do
     IO.inspect(opt)
+
+    ammo_belt = traverse_tree_dst(opt, opt.args.src_dir)
+
+    for {{src, dst}, _i} <- Enum.with_index(ammo_belt) do
+      File.copy!(src, dst)
+    end
   end
 
   @doc """
@@ -11,7 +17,7 @@ defmodule ExProcr.Album do
   offspring directory paths (1) naturally sorted list
   of offspring file paths.
   """
-  def list_dir_groom(abs_path) do
+  def list_dir_groom(_opt, abs_path) do
     raw_list = File.ls!(abs_path)
     # Absolute paths do not go into sorting.
     raw_dirs = for x <- raw_list, File.dir?(Path.join(abs_path, x)), do: x
@@ -30,56 +36,37 @@ defmodule ExProcr.Album do
     {dirs, files}
   end
 
-  @doc """
-  Traverse it lazily!
-  """
-  def traverse_tree_dst_lazy_r(src_dir) do
-    {dirs, files} = list_dir_groom(src_dir)
-
-    for x <- files do
-      x
-    end
-    |> Stream.concat(
-      for x <- dirs do
-        traverse_tree_dst_lazy_r(x)
-      end
-      |> Stream.concat()
-    )
+  def decorate_dir_name(_opt, _i, path) do
+    Path.basename(path)
   end
 
-  @doc """
-  Traverse it lazily!
-  """
-  def traverse_tree_dst_lazy(src_dir) do
-    {dirs, files} = list_dir_groom(src_dir)
-
-    for x <- dirs do
-      traverse_tree_dst_lazy(x)
-    end
-    |> Stream.concat()
-    |> Stream.concat(
-      for x <- files do
-        x
-      end
-    )
+  def decorate_file_name(_opt, _i, _dst_step, path) do
+    Path.basename(path)
   end
 
   @doc """
   Traverse it!
   """
-  def traverse_tree_dst(src_dir, _dst_step \\ nil) do
-    {dirs, files} = list_dir_groom(src_dir)
+  def traverse_tree_dst(opt, src_dir, dst_step \\ []) do
+    {dirs, files} = list_dir_groom(opt, src_dir)
 
-    for {x, i} <- Enum.with_index(dirs) do
-      IO.puts("dir #{i}: #{x}")
-      traverse_tree_dst(x)
+    for {d, i} <- Enum.with_index(dirs) do
+      step = dst_step ++ [decorate_dir_name(opt, i, d)]
+      File.mkdir!(Path.join([opt.args.dst_dir] ++ step))
+      traverse_tree_dst(opt, d, step)
     end
-
-    for {x, i} <- Enum.with_index(files) do
-      IO.puts("file #{i}: #{x}")
-    end
-
-    nil
+    |> Stream.concat()
+    |> Stream.concat(
+      for {f, i} <- Enum.with_index(files) do
+        {
+          f,
+          Path.join(
+            [opt.args.dst_dir] ++
+              dst_step ++ [decorate_file_name(opt, i, dst_step, f)]
+          )
+        }
+      end
+    )
   end
 
   @doc """
