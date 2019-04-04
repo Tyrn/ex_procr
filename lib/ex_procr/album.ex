@@ -31,6 +31,40 @@ defmodule ExProcr.Album do
   end
 
   @doc """
+  Traverse it lazily!
+  """
+  def traverse_tree_dst_lazy_r(src_dir) do
+    {dirs, files} = list_dir_groom(src_dir)
+
+    for x <- files do
+      x
+    end
+    |> Stream.concat(
+      for x <- dirs do
+        traverse_tree_dst_lazy_r(x)
+      end
+      |> Stream.concat()
+    )
+  end
+
+  @doc """
+  Traverse it lazily!
+  """
+  def traverse_tree_dst_lazy(src_dir) do
+    {dirs, files} = list_dir_groom(src_dir)
+
+    for x <- dirs do
+      traverse_tree_dst_lazy(x)
+    end
+    |> Stream.concat()
+    |> Stream.concat(
+      for x <- files do
+        x
+      end
+    )
+  end
+
+  @doc """
   Traverse it!
   """
   def traverse_tree_dst(src_dir, _dst_step \\ nil) do
