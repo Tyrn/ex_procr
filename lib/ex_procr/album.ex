@@ -4,12 +4,15 @@ defmodule ExProcr.Album do
   """
   def copy(opt) do
     IO.inspect(opt)
+    {:ok, pid} = Counter.start_link()
 
-    ammo_belt = traverse_tree_dst(opt, opt.args.src_dir)
+    ammo_belt = traverse_tree_dst(opt, pid, opt.args.src_dir)
 
-    for {{src, dst}, _i} <- Enum.with_index(ammo_belt) do
+    for {{src, dst}, i} <- Enum.with_index(ammo_belt) do
       File.copy!(src, dst)
+      IO.puts("#{i + 1}")
     end
+    IO.puts("total: #{Counter.val(pid)}")
   end
 
   @doc """
@@ -47,17 +50,19 @@ defmodule ExProcr.Album do
   @doc """
   Traverse it!
   """
-  def traverse_tree_dst(opt, src_dir, dst_step \\ []) do
+  def traverse_tree_dst(opt, pid, src_dir, dst_step \\ []) do
     {dirs, files} = list_dir_groom(opt, src_dir)
 
     for {d, i} <- Enum.with_index(dirs) do
       step = dst_step ++ [decorate_dir_name(opt, i, d)]
       File.mkdir!(Path.join([opt.args.dst_dir] ++ step))
-      traverse_tree_dst(opt, d, step)
+      traverse_tree_dst(opt, pid, d, step)
     end
     |> Stream.concat()
     |> Stream.concat(
       for {f, i} <- Enum.with_index(files) do
+        Counter.inc(pid)
+
         {
           f,
           Path.join(
