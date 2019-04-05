@@ -4,15 +4,33 @@ defmodule ExProcr.Album do
   """
   def copy(opt) do
     IO.inspect(opt)
-    {:ok, pid} = Counter.start_link()
+    {:ok, p} = Counter.start_link()
+    v = %{o: opt, cpid: p}
 
-    ammo_belt = traverse_tree_dst(opt, pid, opt.args.src_dir)
+    ammo_belt = traverse_tree_dst(v, v.o.args.src_dir)
 
     for {{src, dst}, i} <- Enum.with_index(ammo_belt) do
       File.copy!(src, dst)
       IO.puts("#{i + 1}")
     end
-    IO.puts("total: #{Counter.val(pid)}")
+
+    IO.puts("total: #{Counter.val(v.cpid)}")
+  end
+
+  @doc """
+  Returns total count of audio files in a given directory
+  and its subdirectories.
+  """
+  def audiofiles_count(dir) do
+    dir |> audiofiles_count_lazily() |> Enum.sum()
+  end
+
+  defp audiofiles_count_lazily(dir) do
+    abs = Stream.map(File.ls!(dir), &Path.join(dir, &1))
+    {dirs, files} = Enum.split_with(abs, &File.dir?/1)
+
+    Stream.flat_map(dirs, &audiofiles_count_lazily/1)
+    |> Stream.concat(Stream.map(files, fn _ -> 1 end))
   end
 
   @doc """
@@ -20,54 +38,46 @@ defmodule ExProcr.Album do
   offspring directory paths (1) naturally sorted list
   of offspring file paths.
   """
-  def list_dir_groom(_opt, abs_path) do
-    raw_list = File.ls!(abs_path)
+  def list_dir_groom(_v, abs_path) do
+    lst = File.ls!(abs_path)
     # Absolute paths do not go into sorting.
-    raw_dirs = for x <- raw_list, File.dir?(Path.join(abs_path, x)), do: x
-    raw_files = for x <- raw_list, File.regular?(Path.join(abs_path, x)), do: x
+    {dirs, files} = Enum.split_with(lst, &File.dir?(Path.join(abs_path, &1)))
 
-    dirs =
-      for x <- Enum.sort(raw_dirs, &str_le_n/2) do
-        Path.join(abs_path, x)
-      end
-
-    files =
-      for x <- Enum.sort(raw_files, &str_le_n/2) do
-        Path.join(abs_path, x)
-      end
-
-    {dirs, files}
+    {
+      Enum.map(Enum.sort(dirs, &str_le_n/2), &Path.join(abs_path, &1)),
+      Enum.map(Enum.sort(files, &str_le_n/2), &Path.join(abs_path, &1))
+    }
   end
 
-  def decorate_dir_name(_opt, _i, path) do
+  def decorate_dir_name(_v, _i, path) do
     Path.basename(path)
   end
 
-  def decorate_file_name(_opt, _i, _dst_step, path) do
+  def decorate_file_name(_v, _i, _dst_step, path) do
     Path.basename(path)
   end
 
   @doc """
   Traverse it!
   """
-  def traverse_tree_dst(opt, pid, src_dir, dst_step \\ []) do
-    {dirs, files} = list_dir_groom(opt, src_dir)
+  def traverse_tree_dst(v, src_dir, dst_step \\ []) do
+    {dirs, files} = list_dir_groom(v, src_dir)
 
     for {d, i} <- Enum.with_index(dirs) do
-      step = dst_step ++ [decorate_dir_name(opt, i, d)]
-      File.mkdir!(Path.join([opt.args.dst_dir] ++ step))
-      traverse_tree_dst(opt, pid, d, step)
+      step = dst_step ++ [decorate_dir_name(v, i, d)]
+      File.mkdir!(Path.join([v.o.args.dst_dir] ++ step))
+      traverse_tree_dst(v, d, step)
     end
     |> Stream.concat()
     |> Stream.concat(
       for {f, i} <- Enum.with_index(files) do
-        Counter.inc(pid)
+        Counter.inc(v.cpid)
 
         {
           f,
           Path.join(
-            [opt.args.dst_dir] ++
-              dst_step ++ [decorate_file_name(opt, i, dst_step, f)]
+            [v.o.args.dst_dir] ++
+              dst_step ++ [decorate_file_name(v, i, dst_step, f)]
           )
         }
       end
