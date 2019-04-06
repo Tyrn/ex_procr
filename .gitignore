@@ -30,3 +30,4 @@ issues-*.tar
 
 # Ignore executable
 pcx
+__pycache__/

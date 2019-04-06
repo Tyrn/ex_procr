@@ -1,6 +1,7 @@
 defmodule Counter do
-  def start_link do
-    Agent.start_link(fn -> 0 end)
+  def init(seed) do
+    {:ok, pid} = Agent.start_link(fn -> seed end)
+    pid
   end
 
   def val(pid) do
@@ -9,5 +10,9 @@ defmodule Counter do
 
   def inc(pid) do
     Agent.update(pid, fn count -> count + 1 end)
+  end
+
+  def dec(pid) do
+    Agent.update(pid, fn count -> count - 1 end)
   end
 end

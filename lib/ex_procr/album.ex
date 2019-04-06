@@ -2,10 +2,24 @@ defmodule ExProcr.Album do
   @doc """
   Runs through the ammo belt and does copying, in the reverse order if necessary.
   """
-  def copy(opt) do
-    IO.inspect(opt)
-    {:ok, p} = Counter.start_link()
-    v = %{o: opt, cpid: p}
+  def copy(optimus) do
+    # {:ok, ppid} =
+    #  :python.start([
+    #    {:python, 'python'},
+    #    {:python_path, '/home/alexey/spaces/elixir/ex_procr'}
+    #  ])
+
+    # fyto = :python.call(ppid, :mama, :add, [22, 20])
+
+    IO.inspect(optimus)
+
+    total = optimus.args.src_dir |> one_for_audiofile() |> Enum.sum()
+
+    v = %{
+      o: optimus,
+      total: total,
+      cpid: Counter.init(if optimus.flags.reverse, do: total, else: 0)
+    }
 
     ammo_belt = traverse_tree_dst(v, v.o.args.src_dir)
 
@@ -14,22 +28,15 @@ defmodule ExProcr.Album do
       IO.puts("#{i + 1}")
     end
 
-    IO.puts("total: #{Counter.val(v.cpid)}")
+    IO.puts("counter: #{Counter.val(v.cpid)}, total: #{v.total}")
   end
 
-  @doc """
-  Returns total count of audio files in a given directory
-  and its subdirectories.
-  """
-  def audiofiles_count(dir) do
-    dir |> audiofiles_count_lazily() |> Enum.sum()
-  end
-
-  defp audiofiles_count_lazily(dir) do
+  defp one_for_audiofile(dir) do
+    # ...zero for anything else. To be Enum.sum()'ed.
     abs = Stream.map(File.ls!(dir), &Path.join(dir, &1))
     {dirs, files} = Enum.split_with(abs, &File.dir?/1)
 
-    Stream.flat_map(dirs, &audiofiles_count_lazily/1)
+    Stream.flat_map(dirs, &one_for_audiofile/1)
     |> Stream.concat(Stream.map(files, fn _ -> 1 end))
   end
 
