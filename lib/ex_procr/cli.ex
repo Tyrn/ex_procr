@@ -1,6 +1,8 @@
 defmodule ExProcr.CLI do
   @moduledoc """
-  Handle the command line.
+  Main function and command line handling. Any function taking a path
+  argument, defined in this project, takes an ABSOLUTE PATH.
+  in this module 
   """
 
   def main(argv) do

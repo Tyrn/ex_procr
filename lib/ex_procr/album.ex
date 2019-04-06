@@ -1,4 +1,10 @@
 defmodule ExProcr.Album do
+  @moduledoc """
+  Making an audio album. Any function taking a path
+  argument, defined in this project, takes an ABSOLUTE PATH.
+  in this module 
+  """
+
   @doc """
   Runs through the ammo belt and does copying, in the reverse order if necessary.
   """
@@ -18,7 +24,8 @@ defmodule ExProcr.Album do
     v = %{
       o: optimus,
       total: total,
-      cpid: Counter.init(if optimus.flags.reverse, do: total, else: 0)
+      width: total |> Integer.to_string() |> String.length(),
+      cpid: Counter.init(if optimus.flags.reverse, do: total, else: 1)
     }
 
     ammo_belt = traverse_tree_dst(v, v.o.args.src_dir)
@@ -60,8 +67,32 @@ defmodule ExProcr.Album do
     Path.basename(path)
   end
 
-  def decorate_file_name(_v, _i, _dst_step, path) do
-    Path.basename(path)
+  defp artist(v) do
+    if v.o.options.artist_tag != nil, do: v.o.options.artist_tag, else: ""
+  end
+
+  def decorate_file_name(v, i, dst_step, path) do
+    cond do
+      v.o.flags.strip_decorations ->
+        Path.basename(path)
+
+      true ->
+        prefix =
+          pad(i, v.width, "0") <>
+            if v.o.flags.prepend_subdir_name and
+                 not v.o.flags.tree_dst and dst_step != [] do
+              "-bubba-"
+            else
+              "-"
+            end
+
+        prefix <>
+          if v.o.options.unified_name != nil do
+            v.o.options.unified_name <> artist(v) <> Path.extname(path)
+          else
+            Path.basename(path)
+          end
+    end
   end
 
   @doc """
@@ -94,14 +125,14 @@ defmodule ExProcr.Album do
   @doc """
   ## Examples
 
-      iex> ExProcr.Album.zero_pad(3, 5)
+      iex> ExProcr.Album.pad(3, 5, "0")
       "00003"
-      iex> ExProcr.Album.zero_pad(15331, 3)
+      iex> ExProcr.Album.pad(15331, 3, " ")
       "15331"
 
   """
-  def zero_pad(value, n) do
-    value |> Integer.to_string() |> String.pad_leading(n, "0")
+  def pad(value, n, ch) do
+    value |> Integer.to_string() |> String.pad_leading(n, ch)
   end
 
   @doc """
