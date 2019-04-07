@@ -58,15 +58,18 @@ defmodule ExProcr.Album do
   offspring directory paths (1) naturally sorted list
   of offspring file paths.
   """
-  def list_dir_groom(_v, dir) do
+  def list_dir_groom(v, dir) do
     lst = File.ls!(dir)
     # Absolute paths do not go into sorting.
     {dirs, all_files} = Enum.split_with(lst, &File.dir?(Path.join(dir, &1)))
     files = Stream.filter(all_files, &aud_file?/1)
 
     {
-      Enum.map(Enum.sort(dirs, &str_le_n/2), &Path.join(dir, &1)),
-      Enum.map(Enum.sort(files, &str_le_n/2), &Path.join(dir, &1))
+      Enum.map(Enum.sort(dirs, &cmp(v, &1, &2)), &Path.join(dir, &1)),
+      Enum.map(
+        Enum.sort(files, &cmp(v, Path.rootname(&1), Path.rootname(&2))),
+        &Path.join(dir, &1)
+      )
     }
   end
 
@@ -88,14 +91,14 @@ defmodule ExProcr.Album do
           pad(i, v.width, "0") <>
             if v.o.flags.prepend_subdir_name and
                  not v.o.flags.tree_dst and dst_step != [] do
-              "-bubba-"
+              "-" <> Enum.join(dst_step, "-") <> "-"
             else
               "-"
             end
 
         prefix <>
           if v.o.options.unified_name != nil do
-            v.o.options.unified_name <> artist(v) <> Path.extname(path)
+            v.o.options.unified_name <> "-" <> artist(v) <> Path.extname(path)
           else
             Path.basename(path)
           end
@@ -177,26 +180,19 @@ defmodule ExProcr.Album do
   @doc """
   Returns true if s1 is less than or equal to s2. If both strings
   contain digits, attempt is made to compare strings naturally.
-
-  ## Examples
-
-      iex> ExProcr.Album.str_le_n("Chapter 8", "Chapter 10")
-      true
-
   """
-  def str_le_n(s1, s2) do
-    str1 = str_strip_numbers(s1)
-    str2 = str_strip_numbers(s2)
+  def cmp(v, s1, s2) do
+    le = fn l, r -> if v.o.flags.reverse, do: r <= l, else: l <= r end
 
-    if str1 != [] and str2 != [], do: str1 <= str2, else: s1 <= s2
-  end
+    cond do
+      v.o.flags.sort_lex ->
+        le.(s1, s2)
 
-  @doc """
-  Returns true if s1 is greater than or equal to s2. If both strings
-  contain digits, attempt is made to compare strings naturally.
-  """
-  def str_ge_n(s1, s2) do
-    str_le_n(s2, s1)
+      true ->
+        str1 = str_strip_numbers(s1)
+        str2 = str_strip_numbers(s2)
+        if str1 != [] and str2 != [], do: le.(str1, str2), else: le.(s1, s2)
+    end
   end
 
   @doc """

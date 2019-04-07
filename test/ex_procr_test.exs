@@ -9,6 +9,15 @@ defmodule ExProcrTest do
     assert ExProcr.hello() == :world
   end
 
+  test "checks Path.rootname behavior" do
+    assert Path.rootname("") == ""
+    assert Path.rootname(".") == ""
+    assert Path.rootname(".moo") == ""
+    assert Path.rootname("ama.do/fifth") == "ama.do/fifth"
+    assert Path.rootname("party/foxtrot.flac") == "party/foxtrot"
+    assert Path.rootname("hiena.feroz") == "hiena"
+  end
+
   test "checks Path.basename behavior" do
     assert Path.basename("") == ""
     assert Path.basename(".") == "."
@@ -45,32 +54,6 @@ defmodule ExProcrTest do
   test "lists of integers are not insane" do
     assert [1, 2] < [1, 2, 3] == true
     assert [1, 3] > [1, 2, 3] == true
-  end
-
-  test "less than or equal" do
-    assert str_le_n("", "") == true
-    assert str_le_n("2a", "10a") == true
-    assert str_le_n("alfa", "bravo") == true
-  end
-
-  test "greater than or equal" do
-    assert str_ge_n("", "") == true
-    assert str_ge_n("2a", "10a") == false
-    assert str_ge_n("alfa", "bravo") == false
-  end
-
-  test "sorts naturally" do
-    assert Enum.sort(
-             ["bravo", "10", "alfa", "12", "9", "8"],
-             &str_le_n/2
-           ) == ["8", "9", "10", "12", "alfa", "bravo"]
-  end
-
-  test "sorts naturally in descending order" do
-    assert Enum.sort(
-             ["bravo", "10", "alfa", "12", "9", "8"],
-             &str_ge_n/2
-           ) == ["bravo", "alfa", "12", "10", "9", "8"]
   end
 
   test "makes initials" do
