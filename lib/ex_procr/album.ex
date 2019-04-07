@@ -4,30 +4,36 @@ defmodule ExProcr.Album do
   argument, defined in this project, takes an ABSOLUTE PATH.
   """
 
-  @doc """
-  Runs through the ammo belt and does copying, in the reverse order if necessary.
-  """
-  def copy(optimus) do
+  defp twimc(optimus) do
+    # Call once to set everything for everybody.
+    #
     # {:ok, ppid} =
     #  :python.start([
     #    {:python, 'python'},
     #    {:python_path, '/home/alexey/spaces/elixir/ex_procr'}
     #  ])
-
+    # rr = :python.start([{:python_path, to_charlist(Path.expand("python"))}, {:python, 'python'}])
     # fyto = :python.call(ppid, :mama, :add, [22, 20])
 
     IO.inspect(optimus)
 
     total = optimus.args.src_dir |> one_for_audiofile() |> Enum.sum()
 
-    v = %{
+    %{
       o: optimus,
       total: total,
       width: total |> Integer.to_string() |> String.length(),
       cpid: Counter.init(if optimus.flags.reverse, do: total, else: 1)
     }
+  end
 
-    ammo_belt = traverse_tree_dst(v, v.o.args.src_dir)
+  @doc """
+  Runs through the ammo belt and does copying, in the reverse order if necessary.
+  """
+  def copy(optimus) do
+    v = twimc(optimus)
+
+    ammo_belt = traverse_flat_dst(v, v.o.args.src_dir)
 
     for {{src, dst}, i} <- Enum.with_index(ammo_belt) do
       File.copy!(src, dst)
@@ -73,12 +79,24 @@ defmodule ExProcr.Album do
     }
   end
 
-  def decorate_dir_name(_v, _i, path) do
-    Path.basename(path)
+  def decorate_dir_name(v, i, path) do
+    if v.o.flags.strip_decorations do
+      ""
+    else
+      pad(i, 3, "0") <> "-"
+    end <> Path.basename(path)
   end
 
-  defp artist(v) do
-    if v.o.options.artist_tag != nil, do: v.o.options.artist_tag, else: ""
+  defp artist(v, forw_dash \\ true) do
+    if v.o.options.artist_tag != nil do
+      if forw_dash do
+        "-" <> v.o.options.artist_tag
+      else
+        v.o.options.artist_tag <> "-"
+      end
+    else
+      ""
+    end
   end
 
   def decorate_file_name(v, i, dst_step, path) do
@@ -98,7 +116,7 @@ defmodule ExProcr.Album do
 
         prefix <>
           if v.o.options.unified_name != nil do
-            v.o.options.unified_name <> "-" <> artist(v) <> Path.extname(path)
+            v.o.options.unified_name <> artist(v) <> Path.extname(path)
           else
             Path.basename(path)
           end
@@ -106,7 +124,6 @@ defmodule ExProcr.Album do
   end
 
   @doc """
-  Traverse it!
   """
   def traverse_tree_dst(v, src_dir, dst_step \\ []) do
     {dirs, files} = list_dir_groom(v, src_dir)
@@ -119,8 +136,6 @@ defmodule ExProcr.Album do
     |> Stream.concat()
     |> Stream.concat(
       for {f, i} <- Enum.with_index(files) do
-        Counter.inc(v.cpid)
-
         {
           f,
           Path.join(
@@ -128,6 +143,30 @@ defmodule ExProcr.Album do
               dst_step ++ [decorate_file_name(v, i, dst_step, f)]
           )
         }
+      end
+    )
+  end
+
+  @doc """
+  """
+  def traverse_flat_dst(v, src_dir, dst_step \\ []) do
+    {dirs, files} = list_dir_groom(v, src_dir)
+
+    for d <- dirs do
+      step = dst_step ++ [Path.basename(d)]
+      traverse_flat_dst(v, d, step)
+    end
+    |> Stream.concat()
+    |> Stream.concat(
+      for f <- files do
+        dst_path =
+          Path.join(
+            v.o.args.dst_dir,
+            decorate_file_name(v, Counter.val(v.cpid), dst_step, f)
+          )
+
+        Counter.inc(v.cpid)
+        {f, dst_path}
       end
     )
   end
