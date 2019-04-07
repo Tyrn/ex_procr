@@ -9,6 +9,14 @@ defmodule ExProcrTest do
     assert ExProcr.hello() == :world
   end
 
+  test "checks Path.basename behavior" do
+    assert Path.basename("") == ""
+    assert Path.basename(".") == "."
+    assert Path.basename(".moo") == ".moo"
+    assert Path.basename("ama.do/fifth") == "fifth"
+    assert Path.basename("party/foxtrot.flac") == "foxtrot.flac"
+  end
+
   test "checks Path.extname behavior" do
     assert Path.extname("") == ""
     assert Path.extname(".") == "."
@@ -20,6 +28,11 @@ defmodule ExProcrTest do
     assert has_ext_of("/alfa/bra.vo/charlie.ogg", "OGG") == true
     assert has_ext_of("/alfa/bra.vo/charlie.ogg", ".ogg") == true
     assert has_ext_of("/alfa/bra.vo/charlie.ogg", "mp3") == false
+  end
+
+  test "checks audiofile" do
+    assert aud_file?("mio") == false
+    assert aud_file?("party.flac") == true
   end
 
   test "strips numbers from a string" do

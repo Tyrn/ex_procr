@@ -2,7 +2,6 @@ defmodule ExProcr.Album do
   @moduledoc """
   Making an audio album. Any function taking a path
   argument, defined in this project, takes an ABSOLUTE PATH.
-  in this module 
   """
 
   @doc """
@@ -32,10 +31,17 @@ defmodule ExProcr.Album do
 
     for {{src, dst}, i} <- Enum.with_index(ammo_belt) do
       File.copy!(src, dst)
-      IO.puts("#{i + 1}")
+      IO.puts("#{pad(i + 1, v.width, " ")}")
     end
 
     IO.puts("counter: #{Counter.val(v.cpid)}, total: #{v.total}")
+  end
+
+  def aud_file?(path) do
+    Enum.member?(
+      [".MP3", ".M4A", ".M4B", ".OGG", ".WMA", ".FLAC"],
+      path |> Path.extname() |> String.upcase()
+    )
   end
 
   defp one_for_audiofile(dir) do
@@ -44,7 +50,7 @@ defmodule ExProcr.Album do
     {dirs, files} = Enum.split_with(abs, &File.dir?/1)
 
     Stream.flat_map(dirs, &one_for_audiofile/1)
-    |> Stream.concat(Stream.map(files, fn _ -> 1 end))
+    |> Stream.concat(Stream.map(files, &if(aud_file?(&1), do: 1, else: 0)))
   end
 
   @doc """
@@ -52,14 +58,15 @@ defmodule ExProcr.Album do
   offspring directory paths (1) naturally sorted list
   of offspring file paths.
   """
-  def list_dir_groom(_v, abs_path) do
-    lst = File.ls!(abs_path)
+  def list_dir_groom(_v, dir) do
+    lst = File.ls!(dir)
     # Absolute paths do not go into sorting.
-    {dirs, files} = Enum.split_with(lst, &File.dir?(Path.join(abs_path, &1)))
+    {dirs, all_files} = Enum.split_with(lst, &File.dir?(Path.join(dir, &1)))
+    files = Stream.filter(all_files, &aud_file?/1)
 
     {
-      Enum.map(Enum.sort(dirs, &str_le_n/2), &Path.join(abs_path, &1)),
-      Enum.map(Enum.sort(files, &str_le_n/2), &Path.join(abs_path, &1))
+      Enum.map(Enum.sort(dirs, &str_le_n/2), &Path.join(dir, &1)),
+      Enum.map(Enum.sort(files, &str_le_n/2), &Path.join(dir, &1))
     }
   end
 
