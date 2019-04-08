@@ -5,40 +5,37 @@ defmodule ExProcr.Album do
   """
 
   defp twimc(optimus) do
-    # Call once to set everything for everybody.
-    #
-    # {:ok, ppid} =
-    #  :python.start([
-    #    {:python, 'python'},
-    #    {:python_path, '/home/alexey/spaces/elixir/ex_procr'}
-    #  ])
-    # rr = :python.start([{:python_path, to_charlist(Path.expand("python"))}, {:python, 'python'}])
-    # fyto = :python.call(ppid, :mama, :add, [22, 20])
+    if File.exists?(optimus.args.src_dir) do
+      nil
+    else
+      IO.puts("Source directory \"#{optimus.args.src_dir}\" is not there.")
+      exit(:shutdown)
+    end
 
-    IO.inspect(optimus)
+    if File.exists?(optimus.args.dst_dir) do
+      nil
+    else
+      IO.puts("Destination path \"#{optimus.args.dst_dir}\" is not there.")
+      exit(:shutdown)
+    end
 
-    prefix =
-      if optimus.options.album_num != nil do
-        pad(optimus.options.album_num, 2, "0") <> "-"
-      else
-        ""
-      end
-
-    base_dst =
-      prefix <>
-        if optimus.options.unified_name != nil do
-          artist(optimus, false) <> optimus.options.unified_name
-        else
-          optimus.args.src_dir |> Path.basename()
-        end
-
+    # Forming basic destination: absolute path <> prefix <> destination name.
     executive_dst =
       Path.join(
         optimus.args.dst_dir,
         if optimus.flags.drop_dst do
           ""
         else
-          base_dst
+          if optimus.options.album_num != nil do
+            pad(optimus.options.album_num, 2, "0") <> "-"
+          else
+            ""
+          end <>
+            if optimus.options.unified_name != nil do
+              artist(optimus, false) <> optimus.options.unified_name
+            else
+              optimus.args.src_dir |> Path.basename()
+            end
         end
       )
 
@@ -46,7 +43,8 @@ defmodule ExProcr.Album do
 
     if total < 1 do
       IO.puts(
-        "There are no supported audio files in the source directory \"#{optimus.args.src_dir}\"."
+        "There are no supported audio files" <>
+          " in the source directory \"#{optimus.args.src_dir}\"."
       )
 
       exit(:shutdown)
@@ -70,6 +68,27 @@ defmodule ExProcr.Album do
       total: total,
       width: total |> Integer.to_string() |> String.length(),
       cpid: Counter.init(if optimus.flags.reverse, do: total, else: 1),
+      count:
+        if optimus.flags.reverse do
+          &Counter.dec/1
+        else
+          &Counter.inc/1
+        end,
+      read_count: &Counter.val/1,
+      album_tag:
+        if optimus.options.unified_name != nil and
+             optimus.options.album_tag == nil do
+          optimus.options.unified_name
+        else
+          optimus.options.album_tag
+        end,
+      tree_dst:
+        if optimus.flags.tree_dst and optimus.flags.reverse do
+          IO.puts("  *** -t option ignored (conflicts with -r) ***")
+          false
+        else
+          optimus.flags.tree_dst
+        end,
       dst: executive_dst
     }
   end
@@ -80,14 +99,37 @@ defmodule ExProcr.Album do
   def copy(optimus) do
     v = twimc(optimus)
 
-    ammo_belt = traverse_flat_dst(v, v.o.args.src_dir)
+    ammo_belt =
+      if v.tree_dst do
+        traverse_tree_dst(v, v.o.args.src_dir)
+      else
+        traverse_flat_dst(v, v.o.args.src_dir)
+      end
 
-    for {{src, dst}, i} <- Enum.with_index(ammo_belt) do
-      File.copy!(src, dst)
-      IO.puts("#{pad(i + 1, v.width, " ")}")
+    if v.o.flags.verbose, do: nil, else: IO.write("Starting ")
+
+    if v.o.flags.reverse do
+      for {entry, i} <- Enum.with_index(ammo_belt) do
+        copy_file(v, entry, v.total - i)
+      end
+    else
+      for {entry, i} <- Enum.with_index(ammo_belt) do
+        copy_file(v, entry, i + 1)
+      end
     end
 
-    IO.puts("counter: #{Counter.val(v.cpid)}, total: #{v.total}")
+    if v.o.flags.verbose, do: nil, else: IO.puts(" Done (#{v.total}).")
+  end
+
+  defp copy_file(v, entry, i) do
+    {src, dst} = entry
+    File.copy!(src, dst)
+
+    if v.o.flags.verbose do
+      IO.puts("#{pad(i, v.width, " ")}/#{v.total} #{dst}")
+    else
+      IO.write(".")
+    end
   end
 
   def aud_file?(path) do
@@ -126,7 +168,7 @@ defmodule ExProcr.Album do
     }
   end
 
-  def decorate_dir_name(v, i, path) do
+  defp decorate_dir_name(v, i, path) do
     if v.o.flags.strip_decorations do
       ""
     else
@@ -146,7 +188,7 @@ defmodule ExProcr.Album do
     end
   end
 
-  def decorate_file_name(v, i, dst_step, path) do
+  defp decorate_file_name(v, i, dst_step, path) do
     cond do
       v.o.flags.strip_decorations ->
         Path.basename(path)
@@ -155,7 +197,7 @@ defmodule ExProcr.Album do
         prefix =
           pad(i, v.width, "0") <>
             if v.o.flags.prepend_subdir_name and
-                 not v.o.flags.tree_dst and dst_step != [] do
+                 not v.tree_dst and dst_step != [] do
               "-" <> Enum.join(dst_step, "-") <> "-"
             else
               "-"
@@ -171,6 +213,9 @@ defmodule ExProcr.Album do
   end
 
   @doc """
+  Recursively traverses the source directory and yields a sequence
+  of (src, tree dst) pairs; the destination directory and file names
+  get decorated according to options.
   """
   def traverse_tree_dst(v, src_dir, dst_step \\ []) do
     {dirs, files} = list_dir_groom(v, src_dir)
@@ -195,27 +240,36 @@ defmodule ExProcr.Album do
   end
 
   @doc """
+  Recursively traverses the source directory and yields a sequence
+  of (src, flat dst) pairs; the destination directory and file names
+  get decorated according to options.
   """
   def traverse_flat_dst(v, src_dir, dst_step \\ []) do
     {dirs, files} = list_dir_groom(v, src_dir)
 
-    for d <- dirs do
+    traverse = fn d ->
       step = dst_step ++ [Path.basename(d)]
       traverse_flat_dst(v, d, step)
     end
-    |> Stream.concat()
-    |> Stream.concat(
-      for f <- files do
-        dst_path =
-          Path.join(
-            v.dst,
-            decorate_file_name(v, Counter.val(v.cpid), dst_step, f)
-          )
 
-        Counter.inc(v.cpid)
-        {f, dst_path}
-      end
-    )
+    handle = fn f ->
+      dst_path =
+        Path.join(
+          v.dst,
+          decorate_file_name(v, v.read_count.(v.cpid), dst_step, f)
+        )
+
+      v.count.(v.cpid)
+      {f, dst_path}
+    end
+
+    if v.o.flags.reverse do
+      Stream.map(files, handle)
+      |> Stream.concat(Stream.flat_map(dirs, traverse))
+    else
+      Stream.flat_map(dirs, traverse)
+      |> Stream.concat(Stream.map(files, handle))
+    end
   end
 
   @doc """
