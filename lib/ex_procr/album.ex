@@ -17,13 +17,60 @@ defmodule ExProcr.Album do
 
     IO.inspect(optimus)
 
+    prefix =
+      if optimus.options.album_num != nil do
+        pad(optimus.options.album_num, 2, "0") <> "-"
+      else
+        ""
+      end
+
+    base_dst =
+      prefix <>
+        if optimus.options.unified_name != nil do
+          artist(optimus, false) <> optimus.options.unified_name
+        else
+          optimus.args.src_dir |> Path.basename()
+        end
+
+    executive_dst =
+      Path.join(
+        optimus.args.dst_dir,
+        if optimus.flags.drop_dst do
+          ""
+        else
+          base_dst
+        end
+      )
+
     total = optimus.args.src_dir |> one_for_audiofile() |> Enum.sum()
+
+    if total < 1 do
+      IO.puts(
+        "There are no supported audio files in the source directory \"#{optimus.args.src_dir}\"."
+      )
+
+      exit(:shutdown)
+    else
+      nil
+    end
+
+    if optimus.flags.drop_dst do
+      nil
+    else
+      if File.exists?(executive_dst) do
+        IO.puts("Destination directory \"#{executive_dst}\" already exists.")
+        exit(:shutdown)
+      else
+        File.mkdir!(executive_dst)
+      end
+    end
 
     %{
       o: optimus,
       total: total,
       width: total |> Integer.to_string() |> String.length(),
-      cpid: Counter.init(if optimus.flags.reverse, do: total, else: 1)
+      cpid: Counter.init(if optimus.flags.reverse, do: total, else: 1),
+      dst: executive_dst
     }
   end
 
@@ -130,7 +177,7 @@ defmodule ExProcr.Album do
 
     for {d, i} <- Enum.with_index(dirs) do
       step = dst_step ++ [decorate_dir_name(v, i, d)]
-      File.mkdir!(Path.join([v.o.args.dst_dir] ++ step))
+      File.mkdir!(Path.join([v.dst] ++ step))
       traverse_tree_dst(v, d, step)
     end
     |> Stream.concat()
@@ -139,7 +186,7 @@ defmodule ExProcr.Album do
         {
           f,
           Path.join(
-            [v.o.args.dst_dir] ++
+            [v.dst] ++
               dst_step ++ [decorate_file_name(v, i, dst_step, f)]
           )
         }
@@ -161,7 +208,7 @@ defmodule ExProcr.Album do
       for f <- files do
         dst_path =
           Path.join(
-            v.o.args.dst_dir,
+            v.dst,
             decorate_file_name(v, Counter.val(v.cpid), dst_step, f)
           )
 
