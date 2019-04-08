@@ -5,6 +5,7 @@ defmodule ExProcr.Album do
   """
 
   defp twimc(optimus) do
+    # Call once to set everything for everybody.
     if File.exists?(optimus.args.src_dir) do
       nil
     else
@@ -126,7 +127,7 @@ defmodule ExProcr.Album do
     File.copy!(src, dst)
 
     if v.o.flags.verbose do
-      IO.puts("#{pad(i, v.width, " ")}/#{v.total} #{dst}")
+      IO.puts("#{pad(i, v.width, " ")}\u26ac#{v.total} #{dst}")
     else
       IO.write(".")
     end
