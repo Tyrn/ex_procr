@@ -5,7 +5,7 @@ defmodule ExProcr.Album do
   """
 
   defp twimc(optimus) do
-    # Call once to set everything for everybody.
+    # Call once to set up everything for everybody.
     if File.exists?(optimus.args.src_dir) do
       nil
     else
@@ -40,7 +40,7 @@ defmodule ExProcr.Album do
         end
       )
 
-    total = optimus.args.src_dir |> one_for_audiofile() |> Enum.sum()
+    total = one_for_audiofile(optimus, optimus.args.src_dir) |> Enum.sum()
 
     if total < 1 do
       IO.puts(
@@ -133,20 +133,27 @@ defmodule ExProcr.Album do
     end
   end
 
-  def aud_file?(path) do
-    Enum.member?(
-      [".MP3", ".M4A", ".M4B", ".OGG", ".WMA", ".FLAC"],
-      path |> Path.extname() |> String.upcase()
-    )
+  def aud_file?(o, path) do
+    audio? =
+      Enum.member?(
+        [".MP3", ".M4A", ".M4B", ".OGG", ".WMA", ".FLAC"],
+        path |> Path.extname() |> String.upcase()
+      )
+
+    if audio? and o.options.file_type != nil do
+      has_ext_of(path, o.options.file_type)
+    else
+      audio?
+    end
   end
 
-  defp one_for_audiofile(dir) do
+  defp one_for_audiofile(o, dir) do
     # ...zero for anything else. To be Enum.sum()'ed.
     abs = Stream.map(File.ls!(dir), &Path.join(dir, &1))
     {dirs, files} = Enum.split_with(abs, &File.dir?/1)
 
-    Stream.flat_map(dirs, &one_for_audiofile/1)
-    |> Stream.concat(Stream.map(files, &if(aud_file?(&1), do: 1, else: 0)))
+    Stream.flat_map(dirs, &one_for_audiofile(o, &1))
+    |> Stream.concat(Stream.map(files, &if(aud_file?(o, &1), do: 1, else: 0)))
   end
 
   @doc """
@@ -158,7 +165,7 @@ defmodule ExProcr.Album do
     lst = File.ls!(dir)
     # Absolute paths do not go into sorting.
     {dirs, all_files} = Enum.split_with(lst, &File.dir?(Path.join(dir, &1)))
-    files = Stream.filter(all_files, &aud_file?/1)
+    files = Stream.filter(all_files, &aud_file?(v.o, &1))
 
     {
       Enum.map(Enum.sort(dirs, &cmp(v, &1, &2)), &Path.join(dir, &1)),
