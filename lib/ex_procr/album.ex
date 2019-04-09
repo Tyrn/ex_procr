@@ -40,7 +40,22 @@ defmodule ExProcr.Album do
         end
       )
 
-    total = one_for_audiofile(optimus, optimus.args.src_dir) |> Enum.sum()
+    {:ok, ppid} = :python.start()
+
+    file_type =
+      if optimus.options.file_type != nil do
+        optimus.options.file_type
+      else
+        ""
+      end
+
+    total =
+      :python.call(
+        ppid,
+        :mutagenstub,
+        :audiofiles_count,
+        [optimus.args.src_dir, file_type]
+      )
 
     if total < 1 do
       IO.puts(
@@ -69,6 +84,7 @@ defmodule ExProcr.Album do
       total: total,
       width: total |> Integer.to_string() |> String.length(),
       cpid: Counter.init(if optimus.flags.reverse, do: total, else: 1),
+      ppid: ppid,
       count:
         if optimus.flags.reverse do
           &Counter.dec/1
@@ -90,6 +106,7 @@ defmodule ExProcr.Album do
         else
           optimus.flags.tree_dst
         end,
+      file_type: file_type,
       dst: executive_dst
     }
   end
@@ -122,9 +139,60 @@ defmodule ExProcr.Album do
     if v.o.flags.verbose, do: nil, else: IO.puts(" Done (#{v.total}).")
   end
 
+  defp p_if_true(list, cond, extra) do
+    if cond, do: extra ++ list, else: list
+  end
+
+  defp set_tags(v, _src, _dst, i) do
+    title = fn s ->
+      s
+      # cond do
+      #   v.o.flags.file_title_num ->
+      #     Integer.to_string(i) <> ">" <> Path.rootname(Path.basename(src))
+
+      #   v.o.flags.file_title ->
+      #     Path.rootname(Path.basename(src))
+
+      #   true ->
+      #     Integer.to_string(i) <> " " <> s
+      # end
+    end
+
+    tracknumber = not v.o.flags.drop_tracknumber
+    artist_album = v.o.options.artist_tag != nil and v.o.options.album_tag != nil
+    artist = v.o.options.artist_tag != nil and v.o.options.album_tag == nil
+    album = v.o.options.artist_tag == nil and v.o.options.album_tag != nil
+
+    tags =
+      []
+      |> p_if_true(
+        tracknumber,
+        ["tracknumber", Integer.to_string(i) <> "/" <> Integer.to_string(v.total)]
+      )
+      |> p_if_true(
+        artist_album,
+        [
+          "title",
+          title.(
+            make_initials(v.o.options.artist_tag) <>
+              " - " <> v.o.options.album_tag
+          )
+        ]
+      )
+      |> p_if_true(artist_album, ["artist", v.o.options.artist_tag])
+      |> p_if_true(artist_album, ["album", v.o.options.album_tag])
+      |> p_if_true(artist, ["title", title.(v.o.options.artist_tag)])
+      |> p_if_true(artist, ["artist", v.o.options.artist_tag])
+      |> p_if_true(album, ["title", title.(v.o.options.album_tag)])
+      |> p_if_true(album, ["album", v.o.options.album_tag])
+
+    IO.inspect(tags)
+  end
+
   defp copy_file(v, entry, i) do
     {src, dst} = entry
     File.copy!(src, dst)
+    # set_tags(v, src, dst, i)
 
     if v.o.flags.verbose do
       IO.puts("#{pad(i, v.width, " ")}\u26ac#{v.total} #{dst}")
@@ -133,27 +201,8 @@ defmodule ExProcr.Album do
     end
   end
 
-  def aud_file?(o, path) do
-    audio? =
-      Enum.member?(
-        [".MP3", ".M4A", ".M4B", ".OGG", ".WMA", ".FLAC"],
-        path |> Path.extname() |> String.upcase()
-      )
-
-    if audio? and o.options.file_type != nil do
-      has_ext_of(path, o.options.file_type)
-    else
-      audio?
-    end
-  end
-
-  defp one_for_audiofile(o, dir) do
-    # ...zero for anything else. To be Enum.sum()'ed.
-    abs = Stream.map(File.ls!(dir), &Path.join(dir, &1))
-    {dirs, files} = Enum.split_with(abs, &File.dir?/1)
-
-    Stream.flat_map(dirs, &one_for_audiofile(o, &1))
-    |> Stream.concat(Stream.map(files, &if(aud_file?(o, &1), do: 1, else: 0)))
+  def aud_file?(v, path) do
+    :python.call(v.ppid, :mutagenstub, :is_audiofile, [path, v.file_type])
   end
 
   @doc """
@@ -165,7 +214,7 @@ defmodule ExProcr.Album do
     lst = File.ls!(dir)
     # Absolute paths do not go into sorting.
     {dirs, all_files} = Enum.split_with(lst, &File.dir?(Path.join(dir, &1)))
-    files = Stream.filter(all_files, &aud_file?(v.o, &1))
+    files = Stream.filter(all_files, &aud_file?(v, Path.join(dir, &1)))
 
     {
       Enum.map(Enum.sort(dirs, &cmp(v, &1, &2)), &Path.join(dir, &1)),
