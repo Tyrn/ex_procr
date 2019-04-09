@@ -5,12 +5,6 @@ defmodule ExProcr.CLI do
   in this module 
   """
 
-  use Mix.Task
-
-  def run(argv) do
-    main(argv)
-  end
-
   def main(argv) do
     argv
     |> parse_args()
