@@ -39,11 +39,6 @@ defmodule ExProcrTest do
     assert has_ext_of("/alfa/bra.vo/charlie.ogg", "mp3") == false
   end
 
-  test "checks audiofile" do
-    assert aud_file?("mio") == false
-    assert aud_file?("party.flac") == true
-  end
-
   test "strips numbers from a string" do
     assert str_strip_numbers("ab11cdd2k.144") == [11, 2, 144]
     assert str_strip_numbers("144") == [144]
