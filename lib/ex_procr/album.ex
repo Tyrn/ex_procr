@@ -185,7 +185,9 @@ defmodule ExProcr.Album do
       end
 
     tag_list =
-      if not v.o.flags.drop_tracknumber do
+      if v.o.flags.drop_tracknumber do
+        basic_list
+      else
         [
           [
             "tracknumber",
@@ -193,8 +195,6 @@ defmodule ExProcr.Album do
           ]
           | basic_list
         ]
-      else
-        basic_list
       end
 
     if tag_list != [] do
@@ -248,12 +248,12 @@ defmodule ExProcr.Album do
     end <> Path.basename(path)
   end
 
-  defp artist(v, forw_dash \\ true) do
-    if v.o.options.artist_tag != nil do
+  defp artist(o, forw_dash \\ true) do
+    if o.options.artist_tag != nil do
       if forw_dash do
-        "-" <> v.o.options.artist_tag
+        "-" <> o.options.artist_tag
       else
-        v.o.options.artist_tag <> "-"
+        o.options.artist_tag <> "-"
       end
     else
       ""
@@ -277,7 +277,7 @@ defmodule ExProcr.Album do
 
         prefix <>
           if v.o.options.unified_name != nil do
-            v.o.options.unified_name <> artist(v) <> Path.extname(path)
+            v.o.options.unified_name <> artist(v.o) <> Path.extname(path)
           else
             Path.basename(path)
           end
