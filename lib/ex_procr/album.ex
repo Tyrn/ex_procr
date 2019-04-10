@@ -139,60 +139,75 @@ defmodule ExProcr.Album do
     if v.o.flags.verbose, do: nil, else: IO.puts(" Done (#{v.total}).")
   end
 
-  defp p_if_true(list, cond, extra) do
-    if cond, do: extra ++ list, else: list
-  end
-
-  defp set_tags(v, _src, _dst, i) do
+  defp set_tags(v, src, dst, i) do
     title = fn s ->
-      s
-      # cond do
-      #   v.o.flags.file_title_num ->
-      #     Integer.to_string(i) <> ">" <> Path.rootname(Path.basename(src))
+      cond do
+        v.o.flags.file_title_num ->
+          Integer.to_string(i) <> ">" <> Path.rootname(Path.basename(src))
 
-      #   v.o.flags.file_title ->
-      #     Path.rootname(Path.basename(src))
+        v.o.flags.file_title ->
+          Path.rootname(Path.basename(src))
 
-      #   true ->
-      #     Integer.to_string(i) <> " " <> s
-      # end
+        true ->
+          Integer.to_string(i) <> " " <> s
+      end
     end
 
-    tracknumber = not v.o.flags.drop_tracknumber
-    artist_album = v.o.options.artist_tag != nil and v.o.options.album_tag != nil
-    artist = v.o.options.artist_tag != nil and v.o.options.album_tag == nil
-    album = v.o.options.artist_tag == nil and v.o.options.album_tag != nil
+    basic_list =
+      cond do
+        v.o.options.artist_tag != nil and v.o.options.album_tag != nil ->
+          [
+            [
+              "title",
+              title.(
+                make_initials(v.o.options.artist_tag) <>
+                  " - " <> v.o.options.album_tag
+              )
+            ],
+            ["artist", v.o.options.artist_tag],
+            ["album", v.o.options.album_tag]
+          ]
 
-    tags =
-      []
-      |> p_if_true(
-        tracknumber,
-        ["tracknumber", Integer.to_string(i) <> "/" <> Integer.to_string(v.total)]
-      )
-      |> p_if_true(
-        artist_album,
+        v.o.options.artist_tag != nil ->
+          [
+            ["title", title.(v.o.options.artist_tag)],
+            ["artist", v.o.options.artist_tag]
+          ]
+
+        v.o.options.album_tag != nil ->
+          [
+            ["title", title.(v.o.options.album_tag)],
+            ["album", v.o.options.album_tag]
+          ]
+
+        true ->
+          []
+      end
+
+    tag_list =
+      if not v.o.flags.drop_tracknumber do
         [
-          "title",
-          title.(
-            make_initials(v.o.options.artist_tag) <>
-              " - " <> v.o.options.album_tag
-          )
+          [
+            "tracknumber",
+            Integer.to_string(i) <> "/" <> Integer.to_string(v.total)
+          ]
+          | basic_list
         ]
-      )
-      |> p_if_true(artist_album, ["artist", v.o.options.artist_tag])
-      |> p_if_true(artist_album, ["album", v.o.options.album_tag])
-      |> p_if_true(artist, ["title", title.(v.o.options.artist_tag)])
-      |> p_if_true(artist, ["artist", v.o.options.artist_tag])
-      |> p_if_true(album, ["title", title.(v.o.options.album_tag)])
-      |> p_if_true(album, ["album", v.o.options.album_tag])
+      else
+        basic_list
+      end
 
-    IO.inspect(tags)
+    if tag_list != [] do
+      :python.call(v.ppid, :mutagenstub, :set_tags, [dst, tag_list])
+    else
+      true
+    end
   end
 
   defp copy_file(v, entry, i) do
     {src, dst} = entry
     File.copy!(src, dst)
-    # set_tags(v, src, dst, i)
+    set_tags(v, src, dst, i)
 
     if v.o.flags.verbose do
       IO.puts("#{pad(i, v.width, " ")}\u26ac#{v.total} #{dst}")
