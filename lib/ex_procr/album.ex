@@ -155,17 +155,17 @@ defmodule ExProcr.Album do
 
     basic_list =
       cond do
-        v.o.options.artist_tag != nil and v.o.options.album_tag != nil ->
+        v.o.options.artist_tag != nil and v.album_tag != nil ->
           [
             [
               "title",
               title.(
                 make_initials(v.o.options.artist_tag) <>
-                  " - " <> v.o.options.album_tag
+                  " - " <> v.album_tag
               )
             ],
             ["artist", v.o.options.artist_tag],
-            ["album", v.o.options.album_tag]
+            ["album", v.album_tag]
           ]
 
         v.o.options.artist_tag != nil ->
@@ -174,10 +174,10 @@ defmodule ExProcr.Album do
             ["artist", v.o.options.artist_tag]
           ]
 
-        v.o.options.album_tag != nil ->
+        v.album_tag != nil ->
           [
-            ["title", title.(v.o.options.album_tag)],
-            ["album", v.o.options.album_tag]
+            ["title", title.(v.album_tag)],
+            ["album", v.album_tag]
           ]
 
         true ->
@@ -251,9 +251,9 @@ defmodule ExProcr.Album do
   defp artist(o, forw_dash \\ true) do
     if o.options.artist_tag != nil do
       if forw_dash do
-        "-" <> o.options.artist_tag
+        " - " <> o.options.artist_tag
       else
-        o.options.artist_tag <> "-"
+        o.options.artist_tag <> " - "
       end
     else
       ""
