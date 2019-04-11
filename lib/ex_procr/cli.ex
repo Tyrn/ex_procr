@@ -113,7 +113,10 @@ defmodule ExProcr.CLI do
           short: "-u",
           long: "--unified-name",
           help:
-            "destination root directory name and file names are based on UNIFIED_NAME, serial number prepended, file extensions retained; also album tag, if the latter is not specified explicitly",
+            "destination root directory name and file names are " <>
+              "based on UNIFIED_NAME, serial number prepended, file " <>
+              "extensions retained; also album tag, if the latter is " <>
+              "not specified explicitly",
           parser: :string
         ],
         album_num: [
