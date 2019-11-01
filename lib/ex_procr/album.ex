@@ -4,6 +4,52 @@ defmodule ExProcr.Album do
   argument, defined in this project, takes an ABSOLUTE PATH.
   """
 
+  defmodule Audio do
+    def file?(ppid, file_type, path) do
+      :python.call(ppid, :mutagenstub, :is_audiofile, [path, file_type])
+    end
+
+    def count_ext(ppid, file_type, dir) do
+      :python.call(
+        ppid,
+        :mutagenstub,
+        :audiofiles_count,
+        [dir, file_type]
+      )
+    end
+
+    def count(ppid, file_type, dir) do
+      Stream.map(File.ls!(dir), fn x ->
+        e = Path.join(dir, x)
+
+        case File.ls(e) do
+          {:ok, _} -> count(ppid, file_type, e)
+          _ -> if file?(ppid, file_type, e), do: 1, else: 0
+        end
+      end)
+      |> Enum.sum()
+    end
+
+    defp list_all_files(path) do
+      File.ls(path)
+      |> (fn
+            {:error, _}, file ->
+              [file]
+
+            {:ok, offspring}, parent ->
+              offspring
+              |> Stream.flat_map(&list_all_files(parent |> Path.join(&1)))
+          end).(path)
+    end
+
+    def count_flat(ppid, file_type, dir) do
+      dir
+      |> list_all_files()
+      |> Stream.filter(&Audio.file?(ppid, file_type, &1))
+      |> Enum.reduce(0, fn _, acc -> acc + 1 end)
+    end
+  end
+
   defp twimc(optimus) do
     # Call once to set up everything for everybody.
     if File.exists?(optimus.args.src_dir) do
@@ -49,13 +95,7 @@ defmodule ExProcr.Album do
         ""
       end
 
-    total =
-      :python.call(
-        ppid,
-        :mutagenstub,
-        :audiofiles_count,
-        [optimus.args.src_dir, file_type]
-      )
+    total = Audio.count_flat(ppid, file_type, optimus.args.src_dir)
 
     if total < 1 do
       IO.puts(
@@ -216,10 +256,6 @@ defmodule ExProcr.Album do
     end
   end
 
-  def aud_file?(v, path) do
-    :python.call(v.ppid, :mutagenstub, :is_audiofile, [path, v.file_type])
-  end
-
   @doc """
   Returns a tuple of: (0) naturally sorted list of
   offspring directory paths (1) naturally sorted list
@@ -229,7 +265,7 @@ defmodule ExProcr.Album do
     lst = File.ls!(dir)
     # Absolute paths do not go into sorting.
     {dirs, all_files} = Enum.split_with(lst, &File.dir?(Path.join(dir, &1)))
-    files = Stream.filter(all_files, &aud_file?(v, Path.join(dir, &1)))
+    files = Stream.filter(all_files, &Audio.file?(v.ppid, v.file_type, Path.join(dir, &1)))
 
     {
       Enum.map(Enum.sort(dirs, &cmp(v, &1, &2)), &Path.join(dir, &1)),
