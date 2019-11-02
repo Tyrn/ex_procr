@@ -18,14 +18,26 @@ defmodule ExProcr.Album do
       )
     end
 
+<<<<<<< HEAD
     defp count_audio_files(ppid, file_type, {:ok, offspring}, dir) do
       Stream.map(offspring, fn x ->
         parent = Path.join(dir, x)
         count_audio_files(ppid, file_type, File.ls(parent), parent)
+=======
+    def count(ppid, file_type, dir) do
+      Stream.map(File.ls!(dir), fn x ->
+        e = Path.join(dir, x)
+
+        case File.ls(e) do
+          {:ok, _} -> count(ppid, file_type, e)
+          _ -> if file?(ppid, file_type, e), do: 1, else: 0
+        end
+>>>>>>> 417614f4e12a581593ff47d336a99a1a53b24436
       end)
       |> Enum.sum()
     end
 
+<<<<<<< HEAD
     defp count_audio_files(ppid, file_type, {:error, _}, file) do
       if Audio.file?(ppid, file_type, file), do: 1, else: 0
     end
@@ -34,6 +46,8 @@ defmodule ExProcr.Album do
       count_audio_files(ppid, file_type, File.ls(dir), dir)
     end
 
+=======
+>>>>>>> 417614f4e12a581593ff47d336a99a1a53b24436
     defp list_all_files(path) do
       File.ls(path)
       |> (fn
@@ -99,7 +113,11 @@ defmodule ExProcr.Album do
         ""
       end
 
+<<<<<<< HEAD
     total = Audio.count(ppid, file_type, optimus.args.src_dir)
+=======
+    total = Audio.count_flat(ppid, file_type, optimus.args.src_dir)
+>>>>>>> 417614f4e12a581593ff47d336a99a1a53b24436
 
     if total < 1 do
       IO.puts(
