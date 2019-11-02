@@ -98,6 +98,16 @@ defmodule ExProcr.CLI do
           short: "-i",
           long: "--prepend-subdir-name",
           help: "prepend current subdirectory name to a file name"
+        ],
+        overwrite: [
+          short: "-w",
+          long: "--overwrite",
+          help: "silently remove existing destination directory (not recommended)"
+        ],
+        dry_run: [
+          short: "-y",
+          long: "--dry-run",
+          help: "without actually copying the files"
         ]
       ],
       options: [

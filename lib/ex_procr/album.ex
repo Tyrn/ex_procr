@@ -112,12 +112,17 @@ defmodule ExProcr.Album do
       nil
     end
 
-    if optimus.flags.drop_dst do
+    if optimus.flags.drop_dst or optimus.flags.dry_run do
       nil
     else
       if File.exists?(executive_dst) do
-        IO.puts("Destination directory \"#{executive_dst}\" already exists.")
-        exit(:shutdown)
+        if optimus.flags.overwrite do
+          File.rm_rf!(executive_dst)
+          File.mkdir!(executive_dst)
+        else
+          IO.puts("Destination directory \"#{executive_dst}\" already exists.")
+          exit(:shutdown)
+        end
       else
         File.mkdir!(executive_dst)
       end
@@ -250,8 +255,13 @@ defmodule ExProcr.Album do
 
   defp copy_file(v, entry, i) do
     {src, dst} = entry
-    File.copy!(src, dst)
-    set_tags(v, src, dst, i)
+
+    if v.o.flags.dry_run do
+      nil
+    else
+      File.copy!(src, dst)
+      set_tags(v, src, dst, i)
+    end
 
     if v.o.flags.verbose do
       IO.puts("#{pad(i, v.width, " ")}\u26ac#{v.total} #{dst}")
